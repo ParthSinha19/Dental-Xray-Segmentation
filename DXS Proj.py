@@ -1,6 +1,6 @@
 # %%
 import numpy as np
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Flatten, Dense
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Flatten, Dense,GlobalAveragePooling2D
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 import pandas as pd
@@ -12,14 +12,12 @@ def load_annotations_from_excel(excel_path):
   annotations_df = pd.read_csv(excel_path)
   return annotations_df
 # %%
-
 def load_image(image_path, target_size=(128,128)):
   image = Image.open(image_path).convert('RGB')
   image = image.resize(target_size)
   image = np.array(image) / 255.0
   return image
 # %%
-
 def dataset_generator_with_coordinates(image_dir, annotations_df, batch_size, target_size =(128,128), augment = False):
   images_filenames = annotations_df['filename'].values
   annotations=annotations_df[['xmin', 'xmax' , 'ymin' , 'ymax']].values
@@ -99,10 +97,14 @@ def lightweight_unet(input_shape=(128, 128, 3)):
     u1 = Conv2DTranspose(16, (2, 2), strides=(2, 2), padding='same')(u2)  # Upsample to (128, 128, 16)
     u1 = Conv2D(16, (3, 3), activation='relu', padding='same', kernel_regularizer=l2(1e-2))(u1)
     u1 = Dropout(0.3)(u1)
+
+    pooled = GlobalAveragePooling2D()(u1)
+
+    dense1 = Dense(64, activation = 'relu')(pooled)
+    dense2 = Dense(32, activation = 'relu')(dense1)
     
     # Output layer for bounding box coordinates
-    output = Flatten()(u1)
-    output = Dense(4, activation='linear')(output)  # Output 4 values (xmin, ymin, xmax, ymax)
+    output = Dense(4, activation='linear')(dense2)  # Output 4 values (xmin, ymin, xmax, ymax)
 
     model = Model(inputs, output)
     return model
@@ -187,10 +189,10 @@ def evaluate_model(test_image_dir , test_excel_path, model , target_size=(128,12
     y_scale= original_size[1]/target_size[1]
 
     predicted_box_rescaled = [
-      (predicted_box[0]*original_size[0])/2,
-      (predicted_box[1]*original_size[1])/2,
+      (predicted_box[0]*original_size[0]),
+      (predicted_box[1]*original_size[1]),
       (predicted_box[2]*original_size[0]),
-      (predicted_box[3]*original_size[1])/2,]
+      (predicted_box[3]*original_size[1])]
     
     ground_truth_box_rescaled = [
             ground_truth_box[0] * original_size[0],
