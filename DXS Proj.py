@@ -208,7 +208,33 @@ def evaluate_model(test_image_dir , test_excel_path, model , target_size=(128,12
   print(f"Model Accuracy: {accuracy:.2f}%")
   return accuracy
 # %%
+def drawing_bounding_box(image_path,excel_path, output_path):
+    
+    annotations_df = pd.read_csv(excel_path)
+    filename = os.path.basename(image_path)
+    annotation = annotations_df[annotations_df['filename'] == filename]
+    
+    if annotation.empty:
+        print("No Annotation found")
+        return
+    image = Image.open(image_path).convert("RGB")
+    draw  = ImageDraw.Draw(image)
+
+    xmin = annotation['xmin'].values[0]
+    ymin = annotation['ymin'].values[0]
+    xmax = annotation['xmax'].values[0]
+    ymax = annotation['ymax'].values[0]
+
+    draw.rectangle([(xmin, ymin),(xmax, ymax)],outline= 'red', width=3)
+
+    image.save(output_path)
+    print(f"Saved Image with predicted bounding box is stored in {output_path}")
+# %%
 test_image_dir = r'C:\Users\HP\Desktop\My Documents\acharya shit - Copy\Major Project\DXS PROJ FILE\test'
 test_excel_path = r'C:\Users\HP\Desktop\My Documents\acharya shit - Copy\Major Project\DXS PROJ FILE\Annotation csv\test_annotations.csv'
 model_accuracy = evaluate_model(test_image_dir , test_excel_path , model , target_size=[128,128], iou_threshold=0.5)
+# %%
+output_path = r'C:\Users\HP\Desktop\My Documents\acharya shit - Copy\Major Project\DXS PROJ FILE\outputs.jpg'
+image_path = input("Enter the path of the XRAY image:")
+image_draw = drawing_bounding_box(image_path,test_excel_path,output_path)
 # %%
